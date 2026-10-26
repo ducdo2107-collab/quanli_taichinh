@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-FinStudent Dashboard</title>
+<meta name="description" content="Quản lý tài chính cá nhân cho sinh viên">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{font-family:Inter,system-ui,sans-serif;background:#F8FAFC;color:#1E293B}
+.inp{width:100%;height:44px;padding:0 28px 0 12px;border:1px solid #CBD5E1;border-radius:12px;font-size:14px;font-weight:600;background:#fff}
+.inp:focus{outline:none;border-color:#10B981;box-shadow:0 0 0 3px #10B98133}
+.inp.bad{border-color:#EF4444}
+.card{background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:20px}
+.pop{animation:pop .35s ease}@keyframes pop{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
+.btn{height:36px;padding:0 12px;border-radius:10px;font-size:12px;font-weight:600}
+:focus-visible{outline:2px solid #10B981;outline-offset:2px}
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+<header class="bg-[#0F2043] text-white shadow-md sticky top-0 z-40">
+ <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+  <div class="flex items-center gap-3 min-w-0">
+   <div class="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 grid place-items-center text-xl" aria-hidden="true">🎓</div>
+   <div class="min-w-0"><h1 class="text-lg font-bold leading-tight">AI-FinStudent <span class="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full align-middle">Pro</span></h1>
+   <p class="text-xs text-slate-300 truncate">Quản lý tài chính thông minh cho sinh viên</p></div>
+  </div>
+  <div class="flex gap-2 shrink-0">
+   <button class="btn bg-white/10 hover:bg-white/20" onclick="exportJSON()" title="Sao lưu dữ liệu">⬇ Sao lưu</button>
+   <button class="btn bg-white/10 hover:bg-white/20" onclick="$('imp').click()" title="Khôi phục dữ liệu">⬆ Khôi phục</button>
+   <input id="imp" type="file" accept=".json" class="hidden" onchange="importJSON(this)">
+  </div>
+ </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-6 w-full flex-grow">
+ <section id="status" class="mb-6" aria-live="polite"></section>
+ <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+  <div class="lg:col-span-5 space-y-6">
+   <section class="card" aria-labelledby="h-form">
+    <div class="flex justify-between items-center mb-3">
+     <h2 id="h-form" class="font-bold text-[#0F2043] text-lg">📝 Nhập liệu tháng này</h2>
+     <div class="flex gap-2">
+      <button class="btn text-emerald-700 bg-emerald-50 hover:bg-emerald-100" onclick="sample()">Dữ liệu mẫu</button>
+      <button class="btn text-slate-600 bg-slate-100 hover:bg-red-50 hover:text-red-600" onclick="resetForm()">Đặt lại</button>
+     </div>
+    </div>
+    <p class="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 mb-4">🔒 Nhập thủ công, không cần liên kết ngân hàng hay ví điện tử. Dữ liệu chỉ nằm trong trình duyệt của bạn.</p>
+    <form id="form" class="space-y-4" onsubmit="return false" autocomplete="off">
+     <div class="grid grid-cols-2 gap-3">
+      <label class="text-xs font-semibold text-slate-600">📅 Tháng
+       <input type="month" id="month" class="inp mt-1" style="padding-right:12px"></label>
+      <label class="text-xs font-semibold text-slate-600">📆 Ngày hiện tại
+       <input type="number" id="day" min="1" max="31" inputmode="numeric" class="inp mt-1" style="padding-right:12px" placeholder="VD: 15">
+       <span id="dayErr" class="text-xs text-red-500 font-normal hidden"></span></label>
+     </div>
+     <fieldset class="space-y-2 border-t border-slate-100 pt-3"><legend class="text-xs font-bold uppercase tracking-wider text-slate-500">💰 Nguồn thu nhập</legend>
+      <div id="incBox" class="grid sm:grid-cols-2 gap-2"></div></fieldset>
+     <fieldset class="space-y-2 border-t border-slate-100 pt-3"><legend class="text-xs font-bold uppercase tracking-wider text-slate-500">💸 Khoản chi</legend>
+      <div id="expBox" class="space-y-2"></div></fieldset>
+     <button type="button" onclick="saveMonth()" class="w-full h-11 bg-[#0F2043] hover:bg-slate-800 text-white font-semibold rounded-xl text-sm">💾 Lưu tháng này vào lịch sử</button>
+    </form>
+   </section>
+   <section class="card"><h2 class="font-bold text-[#0F2043] mb-1">🎯 Phân bổ gợi ý 50/30/20</h2>
+    <p class="text-xs text-slate-500 mb-3">Dựa trên thu nhập <b id="planInc" class="text-slate-700">0 ₫</b></p><div id="plan" class="space-y-2"></div></section>
+  </div>
+
+  <div class="lg:col-span-7 space-y-6">
+   <section id="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3" aria-label="Chỉ số tóm tắt"></section>
+
+   <section class="rounded-2xl p-5 text-white bg-gradient-to-br from-emerald-900 to-[#0F2043] relative overflow-hidden">
+    <div class="absolute -right-4 -bottom-6 opacity-10 text-8xl" aria-hidden="true">🐷</div>
+    <div class="relative">
+     <div class="flex justify-between items-start mb-3"><div><h2 class="font-bold text-emerald-300">🐷 Dự tính tiết kiệm</h2><p class="text-xs text-slate-300">Từ phần dư thực tế mỗi tháng</p></div>
+      <span id="sBadge" class="px-2 py-1 rounded-lg text-xs font-semibold"></span></div>
+     <div class="grid grid-cols-3 gap-2 text-center" id="sGrid"></div>
+     <div class="mt-3"><div class="flex justify-between text-[11px] text-slate-300 mb-1"><span>Mục tiêu tiết kiệm tháng</span><span id="gPct">0%</span></div>
+      <div class="h-2 bg-white/15 rounded-full overflow-hidden"><div id="gBar" class="h-2 bg-emerald-400 rounded-full transition-all duration-500" style="width:0"></div></div></div>
+     <p id="sTip" class="text-xs text-slate-200 mt-3"></p>
+    </div>
+   </section>
+
+   <section class="card">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+     <h2 class="font-bold text-[#0F2043]">📊 Phân tích chi tiêu</h2>
+     <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold" role="tablist">
+      <button id="tPie" role="tab" onclick="tab('pie')" class="px-3 py-1.5 rounded-lg bg-white shadow-sm">Cơ cấu</button>
+      <button id="tHis" role="tab" onclick="tab('his')" class="px-3 py-1.5 rounded-lg text-slate-500">So sánh tháng</button>
+     </div>
+    </div>
+    <div id="pieBox" class="relative h-64"><canvas id="pie" aria-label="Biểu đồ cơ cấu chi tiêu" role="img"></canvas>
+     <div id="pieEmpty" class="absolute inset-0 flex-col items-center justify-center text-slate-400 text-xs hidden"><span class="text-4xl mb-1">📊</span>Chưa có dữ liệu để vẽ biểu đồ</div></div>
+    <div id="hisBox" class="relative h-64 hidden"><canvas id="his" aria-label="Biểu đồ so sánh các tháng" role="img"></canvas>
+     <div id="hisEmpty" class="absolute inset-0 flex-col items-center justify-center text-slate-400 text-xs text-center px-6 hidden"><span class="text-4xl mb-1">📈</span>Bấm “Lưu tháng này vào lịch sử” để bắt đầu so sánh các tháng</div></div>
+   </section>
+
+   <section class="card">
+    <div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-full bg-emerald-100 grid place-items-center text-xl" aria-hidden="true">🤖</div>
+     <div><h2 class="font-bold text-[#0F2043]">AI Behavioral Coach</h2><p class="text-xs text-slate-500">Cố vấn chi tiêu riêng cho sinh viên</p></div></div>
+    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-3"><p id="coach" class="text-sm text-slate-700 leading-relaxed" aria-live="polite"></p></div>
+    <div id="chips" class="flex flex-wrap gap-2 mb-3"></div>
+    <p class="text-[11px] text-slate-400 italic">💡 Lời khuyên mang tính tham khảo, được tính tự động từ số liệu bạn nhập.</p>
+   </section>
+
+   <section class="card">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3"><h2 class="font-bold text-[#0F2043]">📜 Lịch sử các tháng</h2>
+     <div class="flex items-center gap-2"><span id="hCount" class="text-xs text-slate-400"></span><button class="btn bg-slate-100 hover:bg-slate-200 text-slate-700" onclick="exportCSV()">Xuất CSV</button></div></div>
+    <p id="review" class="text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-3 py-2 mb-3" aria-live="polite"></p>
+    <div class="overflow-x-auto"><table class="w-full text-left text-xs min-w-[460px]">
+     <thead class="bg-slate-50 text-slate-500 uppercase border-b border-slate-200"><tr><th class="py-2 px-3">Tháng</th><th class="py-2 px-3">Thu</th><th class="py-2 px-3">Chi</th><th class="py-2 px-3">Dư/Âm</th><th class="py-2 px-3 text-right">Thao tác</th></tr></thead>
+     <tbody id="hBody" class="divide-y divide-slate-100"></tbody></table></div>
+   </section>
+  </div>
+ </div>
+</main>
+
+<footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">AI-FinStudent Pro • Made for students 💙 • Dữ liệu chỉ lưu trên thiết bị của bạn</footer>
+<div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 z-50 hidden max-w-[92vw] bg-[#0F2043] text-white text-sm rounded-xl px-4 py-3 shadow-lg" role="status"></div>
+
+<script>
+/* ===== CẤU HÌNH ===== */
+const $=id=>document.getElementById(id);
+const K_CUR='aifin_cur_v3',K_HIS='aifin_his_v3',nf=new Intl.NumberFormat('vi-VN');
+const INC=[['incAllowance','👨‍👩‍👧 Trợ cấp gia đình'],['incJob','💼 Đi làm thêm'],['incScholarship','🎖️ Học bổng'],['incOther','✨ Khác (thưởng, quà)']];
+const EXP=[['expRent','🏠 Tiền trọ + điện nước'],['expFood','🍜 Tiền ăn uống cố định'],['expFlexible','🛍️ Chi linh hoạt đã dùng (giải trí, đi lại, mua sắm)'],['expGoal','🎯 Mục tiêu tiết kiệm tháng này']];
+const KEYS=[...INC,...EXP].map(x=>x[0]);
+const TH={red:{box:'bg-red-50 border-red-200 text-red-900',bar:'bg-red-500',trk:'bg-red-200',pill:'bg-red-200 text-red-800',i:'🔴',t:'THÂM HỤT',d:'Tổng chi đã vượt thu nhập. Hãy cắt giảm ngay!',l:'Cảnh báo đỏ'},
+ yellow:{box:'bg-amber-50 border-amber-200 text-amber-900',bar:'bg-amber-500',trk:'bg-amber-200',pill:'bg-amber-200 text-amber-800',i:'🟡',t:'CÂN BẰNG',d:'Phần dư dưới 10% thu nhập, hãy thắt chặt chi linh hoạt.',l:'Cần cẩn trọng'},
+ green:{box:'bg-emerald-50 border-emerald-200 text-emerald-950',bar:'bg-emerald-500',trk:'bg-emerald-200',pill:'bg-emerald-200 text-emerald-800',i:'🟢',t:'THẶNG DƯ',d:'Tài chính đang an toàn, hãy trích một phần vào quỹ tiết kiệm.',l:'An toàn'}};
+let S={},H=[],pie,his,toastT;
+
+/* ===== TIỆN ÍCH ===== */
+const num=v=>Math.min(parseInt(String(v||'').replace(/\D/g,''),10)||0,1e10);
+const vnd=n=>nf.format(Math.round(n||0))+' ₫';
+const short=n=>{const a=Math.abs(n),s=n<0?'-':'';return a>=1e6?s+(a/1e6).toFixed(1).replace(/\.0$/,'')+'tr':a>=1e3?s+Math.round(a/1e3)+'k':s+Math.round(a)+'đ'};
+const daysIn=ym=>{const[y,m]=ym.split('-').map(Number);return new Date(y,m,0).getDate()};
+const nowYM=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const ls={get:k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m){const t=$('toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.add('hidden'),2800)}
+
+/* ===== TẦNG 1: NHẬP LIỆU NHANH ===== */
+function field(id,label,goal){return `<label class="block text-xs font-medium text-slate-700">${label}<div class="relative mt-1"><input id="${id}" type="text" inputmode="numeric" placeholder="${goal?'VD: 500.000':'0'}" class="inp ${goal?'!border-emerald-300 bg-emerald-50/40':''}"><span class="absolute right-3 top-3 text-xs text-slate-400 font-bold">₫</span></div></label>`}
+function buildForm(){$('incBox').innerHTML=INC.map(f=>field(f[0],f[1])).join('');$('expBox').innerHTML=EXP.map((f,i)=>field(f[0],f[1],i==3)).join('');
+ KEYS.forEach(k=>$(k).addEventListener('input',fmtInput));$('month').addEventListener('change',onMonth);$('day').addEventListener('input',calc)}
+function fmtInput(e){const el=e.target,pos=el.selectionStart,before=el.value.slice(0,pos).replace(/\D/g,'').length,n=num(el.value);
+ el.value=n?nf.format(n):'';let p=0,c=0;while(p<el.value.length&&c<before){if(/\d/.test(el.value[p]))c++;p++}
+ try{el.setSelectionRange(p,p)}catch(x){}calc()}
+function onMonth(){const m=$('month').value||nowYM(),cur=nowYM();$('day').value=m===cur?new Date().getDate():(m<cur?daysIn(m):1);calc()}
+function setForm(d){$('month').value=d.month||nowYM();$('day').value=d.day||new Date().getDate();KEYS.forEach(k=>$(k).value=d[k]?nf.format(d[k]):'')}
+function sample(){setForm({month:nowYM(),day:15,incAllowance:3500000,incJob:1500000,incScholarship:1000000,expRent:1500000,expFood:1800000,expFlexible:800000,expGoal:500000});calc();toast('Đã điền dữ liệu mẫu')}
+function resetForm(){if(!confirm('Xóa toàn bộ số liệu đang nhập?'))return;setForm({month:nowYM(),day:new Date().getDate()});calc();toast('Đã đặt lại form')}
+function read(){const m=$('month').value||nowYM(),max=daysIn(m),raw=parseInt($('day').value,10),err=$('dayErr');let d=raw||1,msg='';
+ if($('day').value!==''&&(raw<1||raw>max||isNaN(raw))){msg=`Ngày phải từ 1 đến ${max}`;d=Math.min(Math.max(d,1),max)}
+ err.textContent=msg;err.classList.toggle('hidden',!msg);$('day').classList.toggle('bad',!!msg);
+ S={month:m,day:d};KEYS.forEach(k=>S[k]=num($(k).value));ls.set(K_CUR,S)}
+
+/* ===== TẦNG 2: ĐỘNG CƠ TÍNH TOÁN ===== */
+function calc(){read();
+ const income=S.incAllowance+S.incJob+S.incScholarship+S.incOther,fixed=S.expRent+S.expFood,spent=fixed+S.expFlexible,net=income-spent,
+ total=daysIn(S.month),left=Math.max(1,total-S.day+1),
+ flexLeft=net-S.expGoal, /* Ngân sách linh hoạt còn lại = Thu − Chi cố định − Chi linh hoạt đã dùng − Mục tiêu tiết kiệm */
+ burn=flexLeft/left,  /* Burn Rate = Ngân sách linh hoạt còn lại ÷ Số ngày còn lại */
+ projected=income-fixed-(S.expFlexible/Math.max(1,S.day))*total,empty=!income&&!spent;
+ const R={income,fixed,spent,net,left,flexLeft,burn,projected,empty};
+ renderStatus(R);renderStats(R);renderSavings(R);renderPlan(income);renderCoach(R);updatePie(R);renderReview()}
+
+/* ===== TẦNG 3: TRẠNG THÁI & AI COACH ===== */
+function renderStatus(r){const el=$('status');
+ if(r.empty){el.innerHTML=`<div class="card flex items-center gap-3 bg-slate-100"><span class="text-3xl">👋</span><div><h2 class="font-bold">Chào bạn! Hãy nhập thu chi để bắt đầu</h2><p class="text-xs text-slate-600">Bấm “Dữ liệu mẫu” để xem thử cách hoạt động.</p></div></div>`;return}
+ const k=r.net<0?'red':r.net<=r.income*.1?'yellow':'green',t=TH[k],pct=r.income>0?Math.round(r.spent/r.income*100):100,amt=k==='red'?`đang âm ${vnd(-r.net)}`:`dư ${vnd(r.net)}`;
+ el.innerHTML=`<div class="pop p-5 rounded-2xl border shadow-sm ${t.box}"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div class="flex items-center gap-3"><span class="text-3xl">${t.i}</span><div><h2 class="font-bold">${t.t} (${amt})</h2><p class="text-xs opacity-80">${t.d}</p></div></div><span class="text-xs font-bold px-3 py-1 rounded-full w-fit ${t.pill}">${t.l}</span></div>
+ <div class="h-2.5 rounded-full mt-4 overflow-hidden ${t.trk}" role="progressbar" aria-valuenow="${Math.min(pct,100)}" aria-valuemin="0" aria-valuemax="100"><div class="h-2.5 rounded-full transition-all duration-500 ${t.bar}" style="width:${Math.min(pct,100)}%"></div></div>
+ <div class="flex justify-between text-[11px] font-semibold mt-1"><span>Đã tiêu: ${vnd(r.spent)}</span><span>${pct}% / ${vnd(r.income)}</span></div></div>`}
+
+function renderStats(r){const c=r.burn<30000?'text-red-600':r.burn<70000?'text-amber-600':'text-emerald-600',pct=r.income?Math.round(r.spent/r.income*100):0;
+ const box=(l,v,s,cls='text-slate-800',tip='')=>`<div class="card !p-4 pop" ${tip?`title="${tip}"`:''}><span class="text-[11px] font-bold text-slate-400 uppercase block mb-1">${l}</span><span class="text-base sm:text-lg font-extrabold block truncate ${cls}">${v}</span><span class="text-[10px] text-slate-500">${s}</span></div>`;
+ $('stats').innerHTML=box('🔥 Burn Rate/ngày',vnd(r.burn),'Hạn mức chi mỗi ngày',c,'Burn Rate = ngân sách linh hoạt còn lại ÷ số ngày còn lại')+box('💰 Linh hoạt còn lại',vnd(r.flexLeft),'Đã trừ chi cố định + tiết kiệm',r.flexLeft<0?'text-red-600':'')+box('⏳ Ngày còn lại',r.left+' ngày','Tính cả hôm nay')+box('📊 Tổng đã chi',vnd(r.spent),`Bằng ${pct}% thu nhập`)}
+
+function renderSavings(r){const p=Math.max(0,r.net),b=$('sBadge'),g=S.expGoal,pct=g?Math.min(100,Math.round(p/g*100)):0;
+ $('sGrid').innerHTML=[['Tháng này',p],['Sau 6 tháng',p*6],['Sau 1 năm',p*12]].map((x,i)=>`<div class="bg-white/10 rounded-xl py-2.5"><span class="block text-[10px] text-slate-300 uppercase font-semibold">${x[0]}</span><span class="text-sm font-bold ${i==2?'text-amber-300':'text-emerald-300'}">${vnd(x[1])}</span></div>`).join('');
+ $('gBar').style.width=pct+'%';$('gPct').textContent=g?pct+'% của '+vnd(g):'Chưa đặt mục tiêu';
+ const fc=r.empty?'':` Dự báo cuối tháng nếu giữ tốc độ chi linh hoạt hiện tại: ${r.projected<0?'hụt '+vnd(-r.projected):'dư '+vnd(r.projected)}.`;
+ let cls,txt,tip;
+ if(p<=0){cls='bg-red-500/20 text-red-300 border border-red-400/30';txt='Chưa tích lũy';tip='Bạn đang chi vượt thu nhập, hãy thắt chặt để có tiền tích lũy.'}
+ else if(g&&p<g){cls='bg-amber-500/20 text-amber-300 border border-amber-400/30';txt='Cần cố gắng';tip=`Còn thiếu ${vnd(g-p)} để đạt mục tiêu ${vnd(g)}.`}
+ else{cls='bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';txt=g?'Đạt mục tiêu':'Tốt';tip=`Duy trì mức dư này, sau 1 năm bạn tích lũy ${vnd(p*12)}.`}
+ b.className='px-2 py-1 rounded-lg text-xs font-semibold '+cls;b.textContent=txt;$('sTip').textContent=r.empty?'Nhập dữ liệu thu chi để xem mô phỏng.':'💡 '+tip+fc}
+
+function renderPlan(inc){$('planInc').textContent=vnd(inc);
+ if(!inc){$('plan').innerHTML='<p class="text-xs text-slate-400 italic">Nhập thu nhập để xem gợi ý.</p>';return}
+ const row=(t,s,p,cls)=>`<div class="p-2.5 rounded-xl border flex justify-between items-center gap-2 text-xs ${cls}"><div><b class="block">${t}</b><span class="text-[11px] opacity-70">${s}</span></div><b class="shrink-0">${vnd(inc*p)}</b></div>`;
+ $('plan').innerHTML=row('🏠🍜 Thiết yếu (50%)','Trọ, điện nước, ăn uống',.5,'bg-slate-50 border-slate-100')+row('🛍️☕ Linh hoạt (30%)','Đi lại, sách vở, cà phê, giải trí',.3,'bg-slate-50 border-slate-100')+row('🐷 Tiết kiệm (20%)','Dự phòng, học phí, tương lai',.2,'bg-emerald-50 border-emerald-100 text-emerald-900')}
+
+function renderCoach(r){let a,chips;
+ if(r.empty){a='Chào bạn! Nhập thu nhập và các khoản chi để mình phân tích và đưa ra lời khuyên nhé.';chips=['💡 Nhập thu nhập','📝 Ghi chép mỗi ngày']}
+ else if(r.spent>r.income){a=`🔴 **Cảnh báo:** Bạn đang chi vượt thu nhập **${short(r.spent-r.income)}**. Hãy dừng các khoản mua sắm chưa cần thiết, cân nhắc làm thêm hoặc gia sư để bù lại.`;chips=['🚫 Dừng mua sắm','🍳 Tự nấu ăn tại nhà','💼 Tìm việc làm thêm']}
+ else if(r.burn<0){a=`🔴 **Hết ngân sách linh hoạt:** Bạn đang lấn vào quỹ tiết kiệm **${short(-r.flexLeft)}**. Hãy hoãn mua sắm, tự nấu ăn tại phòng để giữ mục tiêu tháng này.`;chips=['🍳 Tự nấu ăn tại nhà','🚫 Hoãn mua sắm','💧 Mang nước theo đi học']}
+ else if(r.burn<30000){a=`🚨 **Báo động đỏ:** Hạn mức chỉ còn **${short(r.burn)}/ngày** cho ${r.left} ngày tới. Hãy ưu tiên tự nấu ăn tại phòng, hạn chế trà sữa và ăn ngoài.`;chips=['🛒 Đi chợ nấu 3-4 ngày','🍳 Tự nấu ăn tại nhà','💧 Mang nước theo đi học']}
+ else if(r.burn<70000){a=`📉 **Thắt chặt:** Bạn còn **${short(r.burn)}/ngày** trong ${r.left} ngày tới. Hãy hạn chế ăn ngoài và ưu tiên cơm bình dân.`;chips=['🍱 Cơm sinh viên','📊 Ghi chép hằng ngày','🎁 Dùng ưu đãi sinh viên']}
+ else if(r.burn<150000){a=`⚖️ **Ổn định:** Bạn có **${short(r.burn)}/ngày** trong ${r.left} ngày tới. Hãy duy trì và áp dụng quy tắc 50/30/20.`;chips=['👍 Giữ nhịp độ','🎯 Trích nhỏ tiết kiệm','🎁 Dùng ưu đãi sinh viên']}
+ else{a=`🎉 **Thoải mái:** Bạn còn **${short(r.burn)}/ngày** trong ${r.left} ngày tới. Hãy trích khoảng 20% phần dư (~${short(r.net*.2)}) vào quỹ tiết kiệm hoặc khẩn cấp.`;chips=['🐷 Trích 20% tiết kiệm','📚 Đầu tư kỹ năng','✨ Tự thưởng hợp lý']}
+ $('coach').innerHTML=esc(a).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+ $('chips').innerHTML=chips.map(c=>`<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">${c}</span>`).join('')}
+
+/* ===== TẦNG 4: BIỂU ĐỒ ===== */
+function initCharts(){const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}}};
+ pie=new Chart($('pie'),{type:'doughnut',data:{labels:['Tiền trọ','Ăn uống','Linh hoạt đã dùng','Quỹ tiết kiệm','Linh hoạt còn lại'],datasets:[{data:[0,0,0,0,0],backgroundColor:['#0F2043','#3B82F6','#F59E0B','#8B5CF6','#10B981'],borderWidth:2,borderColor:'#fff'}]},
+  options:{...base,cutout:'62%',plugins:{...base.plugins,tooltip:{callbacks:{label:c=>{const t=c.dataset.data.reduce((a,b)=>a+b,0)||1;return` ${c.label}: ${vnd(c.raw)} (${Math.round(c.raw/t*100)}%)`}}}}}});
+ his=new Chart($('his'),{type:'bar',data:{labels:[],datasets:[{label:'Thu nhập',data:[],backgroundColor:'#10B981',borderRadius:6},{label:'Tổng chi',data:[],backgroundColor:'#EF4444',borderRadius:6}]},
+  options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${vnd(c.raw)}`}}},scales:{y:{ticks:{callback:v=>short(v)}}}}})}
+function updatePie(r){const d=[S.expRent,S.expFood,S.expFlexible,S.expGoal,Math.max(0,r.flexLeft)],has=d.some(x=>x>0);
+ $('pieEmpty').classList.toggle('hidden',has);$('pieEmpty').classList.toggle('flex',!has);pie.data.datasets[0].data=has?d:[0,0,0,0,0];pie.update()}
+function updateHis(){const s=[...H].sort((a,b)=>a.month.localeCompare(b.month));his.data.labels=s.map(x=>x.month);his.data.datasets[0].data=s.map(x=>x.income);his.data.datasets[1].data=s.map(x=>x.expense);his.update();
+ $('hisEmpty').classList.toggle('hidden',!!s.length);$('hisEmpty').classList.toggle('flex',!s.length)}
+function tab(t){const p=t==='pie';$('pieBox').classList.toggle('hidden',!p);$('hisBox').classList.toggle('hidden',p);
+ $('tPie').className='px-3 py-1.5 rounded-lg '+(p?'bg-white shadow-sm':'text-slate-500');$('tHis').className='px-3 py-1.5 rounded-lg '+(p?'text-slate-500':'bg-white shadow-sm');
+ if(!p){updateHis();his.resize()}else pie.resize()}
+
+/* ===== TẦNG 4: LỊCH SỬ & VÒNG LẶP ĐIỀU CHỈNH ===== */
+function saveMonth(){read();const income=S.incAllowance+S.incJob+S.incScholarship+S.incOther,expense=S.expRent+S.expFood+S.expFlexible;
+ if(!income&&!expense)return toast('Hãy nhập dữ liệu thu chi trước khi lưu');
+ const rec={month:S.month,income,expense,net:income-expense,d:{...S}},i=H.findIndex(h=>h.month===S.month);
+ i>=0?H[i]=rec:H.push(rec);H.sort((a,b)=>b.month.localeCompare(a.month));ls.set(K_HIS,H);renderHis();updateHis();toast(`Đã lưu tháng ${S.month} ✅`)}
+function renderHis(){renderReview();$('hCount').textContent=H.length+' tháng';
+ $('hBody').innerHTML=H.length?H.map((h,i)=>`<tr class="hover:bg-slate-50"><td class="py-2.5 px-3 font-semibold">${esc(h.month)}</td><td class="py-2.5 px-3">${vnd(h.income)}</td><td class="py-2.5 px-3">${vnd(h.expense)}</td><td class="py-2.5 px-3 font-bold ${h.net>=0?'text-emerald-600':'text-red-600'}">${vnd(h.net)}</td><td class="py-2.5 px-3 text-right whitespace-nowrap"><button class="font-semibold text-emerald-700 mr-3" onclick="loadMonth(${i})">Mở lại</button><button class="font-semibold text-red-500" onclick="delMonth(${i})">Xóa</button></td></tr>`).join(''):'<tr><td colspan="5" class="py-6 text-center text-slate-400">Chưa có tháng nào được lưu.</td></tr>'}
+function loadMonth(i){if(!H[i]||!H[i].d)return toast('Bản ghi này không có chi tiết');setForm(H[i].d);calc();scrollTo({top:0,behavior:'smooth'});toast('Đã mở lại tháng '+H[i].month)}
+function delMonth(i){const r=H[i];if(!r||!confirm('Xóa dữ liệu tháng '+r.month+'?'))return;H.splice(i,1);ls.set(K_HIS,H);renderHis();updateHis();toast('Đã xóa tháng '+r.month)}
+function renderReview(){const p=[...H].filter(h=>h.month<S.month).sort((a,b)=>b.month.localeCompare(a.month))[0],cur=(S.expRent||0)+(S.expFood||0)+(S.expFlexible||0),bad=H.filter(h=>h.net<0).length;let t='';
+ if(p&&cur){const d=cur-p.expense,pc=p.expense?Math.round(Math.abs(d)/p.expense*100):0;t=`📈 So với ${p.month}: chi ${d>0?'tăng':'giảm'} ${vnd(Math.abs(d))} (${pc}%). ${d>0?'Hãy xem lại khoản chi linh hoạt.':'Giữ vững nhịp này nhé!'} `}
+ if(bad)t+=`⚠️ ${bad}/${H.length} tháng đã lưu bị thâm hụt, hãy đặt hạn mức chi linh hoạt thấp hơn cho tháng sau.`;
+ $('review').textContent=t||'Lưu từ 2 tháng trở lên để nhận đánh giá so sánh.'}
+
+/* ===== SAO LƯU / XUẤT ===== */
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function exportJSON(){download(`finstudent-${nowYM()}.json`,JSON.stringify({current:S,history:H},null,1),'application/json');toast('Đã tải file sao lưu')}
+function exportCSV(){if(!H.length)return toast('Chưa có lịch sử để xuất');
+ download('lich-su-chi-tieu.csv','\uFEFFThang,Thu nhap,Tong chi,Du/Am\n'+H.map(h=>[h.month,h.income,h.expense,h.net].join(',')).join('\n'),'text/csv')}
+function importJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{const d=JSON.parse(r.result);if(!d||!Array.isArray(d.history))throw 0;
+  H=d.history.filter(h=>h&&/^\d{4}-\d{2}$/.test(h.month)).map(h=>({month:h.month,income:num(h.income),expense:num(h.expense),net:Number(h.net)||0,d:h.d}));
+  H.sort((a,b)=>b.month.localeCompare(a.month));ls.set(K_HIS,H);if(d.current)setForm(d.current);calc();renderHis();updateHis();toast('Đã khôi phục dữ liệu ✅')}
+  catch(e){toast('File không hợp lệ, hãy chọn file sao lưu .json')}inp.value=''};r.readAsText(f)}
+
+/* ===== KHỞI TẠO ===== */
+window.addEventListener('DOMContentLoaded',()=>{buildForm();H=Array.isArray(ls.get(K_HIS))?ls.get(K_HIS):[];
+ const cur=ls.get(K_CUR);setForm(cur&&cur.month===nowYM()?cur:{...(cur||{}),month:nowYM(),day:new Date().getDate()});
+ initCharts();renderHis();updateHis();calc()});
+</script>
+</body>
+</html>
